@@ -1,7 +1,13 @@
 import os
+import json
+from pathlib import Path
+from groq import Groq
+from typing import List, Dict, Any
 from dotenv import load_dotenv
 
-load_dotenv()
+# Load .env from project root (one level up from backend/)
+env_path = Path(__file__).resolve().parent.parent / '.env'
+load_dotenv(dotenv_path=env_path)
 
 # Securely load key
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
