@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 import shutil
 import subprocess
+import os
 
 # Initialize FastMCP Server
 mcp = FastMCP("Snort Service")
@@ -78,6 +79,48 @@ def run_sniffer(interface: str = "eth0", packet_count: int = 10) -> str:
         return "Error: Sniffer timed out."
     except Exception as e:
         return f"Error running sniffer: {str(e)}"
+
+@mcp.tool()
+def read_snort_logs(log_type: str = "alert.fast", lines: int = 20) -> str:
+    """
+    Read the latest entries from Snort log files.
+    Args:
+        log_type: Type of log to read. Options: 'alert', 'alert.fast', 'log'. Defaults to 'alert.fast'.
+        lines: Number of latest lines to read. Max 100. Defaults to 20.
+    """
+    log_dir = "/var/log/snort/"
+    
+    # Map friendly names to actual files
+    log_files = {
+        "alert": "snort.alert",
+        "alert.fast": "snort.alert.fast",
+        "log": "snort.log"
+    }
+    
+    if log_type not in log_files:
+        return f"Error: Invalid log_type. Available types: {', '.join(log_files.keys())}"
+    
+    file_path = os.path.join(log_dir, log_files[log_type])
+    
+    if not os.path.exists(file_path):
+        return f"Error: Log file {file_path} not found."
+    
+    # Safety limit
+    lines = min(max(1, lines), 100)
+    
+    try:
+        # Use tail command for efficiency with large files
+        result = subprocess.run(["tail", "-n", str(lines), file_path], capture_output=True, text=True, timeout=5)
+        if result.returncode != 0:
+            return f"Error reading log: {result.stderr}"
+        
+        output = result.stdout.strip()
+        if not output:
+            return f"No entries found in {log_files[log_type]}."
+            
+        return f"--- Latest {lines} lines from {log_files[log_type]} ---\n{output}"
+    except Exception as e:
+        return f"Error executing tail: {str(e)}"
 
 if __name__ == "__main__":
     mcp.run()
