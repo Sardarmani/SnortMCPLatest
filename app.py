@@ -23,37 +23,63 @@ st.set_page_config(
 # Custom CSS
 st.markdown("""
 <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono&display=swap');
+
     .stApp {
-        background-color: #0d1117;
-        color: #c9d1d9;
-        font-family: 'Courier New', monospace;
+        background: radial-gradient(circle at top right, #1a1f2e, #0d1117);
+        color: #e6edf3;
+        font-family: 'Inter', sans-serif;
     }
+    
     .stTextInput > div > div > input {
-        background-color: #010409;
-        color: #f78166; /* Groq Orange-ish */
-        border: 1px solid #30363d;
+        background: rgba(1, 4, 9, 0.7);
+        backdrop-filter: blur(10px);
+        color: #f78166;
+        border: 1px solid rgba(48, 54, 61, 0.5);
+        border-radius: 8px;
+        font-family: 'JetBrains Mono', monospace;
     }
+    
     div[data-testid="stSidebar"] {
-        background-color: #010409;
-        border-right: 1px solid #30363d;
+        background: rgba(1, 4, 9, 0.95) !important;
+        border-right: 1px solid rgba(48, 54, 61, 0.5);
     }
+    
     h1, h2, h3 {
         color: #f78166 !important;
+        font-weight: 700 !important;
     }
-    div[data-testid="stStatusWidget"] {
-        border-color: #f78166;
-    }
+    
     .tool-call {
-        background-color: #1f2937;
+        background: rgba(31, 41, 55, 0.4);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(16, 185, 129, 0.3);
         border-left: 5px solid #10b981;
-        padding: 10px;
-        border-radius: 4px;
-        margin-bottom: 10px;
+        padding: 1.5rem;
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    
+    .stDataFrame {
+        background: rgba(1, 4, 9, 0.5);
+        border-radius: 8px;
+        border: 1px solid rgba(48, 54, 61, 0.3);
+    }
+    
+    /* Better sidebar items */
+    .sidebar-tool {
+        background: rgba(247, 129, 102, 0.1);
+        border-radius: 6px;
+        padding: 4px 8px;
+        margin-bottom: 4px;
+        border: 1px solid rgba(247, 129, 102, 0.2);
     }
 </style>
 """, unsafe_allow_html=True)
 
 # --- MCP Client Implementation ---
+# ... (MCPAgent class remains the same)
 
 class MCPAgent:
     def __init__(self):
@@ -169,6 +195,31 @@ if query:
                 status.update(label="Task Complete", state="complete", expanded=False)
                 
                 # Show Final Output
-                st.markdown(f"<div class='tool-call'><b>Tool Output ({tool_name}):</b><br><pre>{tool_output}</pre></div>", unsafe_allow_html=True)
+                with st.container():
+                    st.markdown(f"#### 🛠️ Tool Result: `{tool_name}`")
+                    
+                    try:
+                        # Try to parse output as JSON for custom rendering
+                        data = json.loads(tool_output)
+                        
+                        if isinstance(data, list) and len(data) > 0:
+                            # Render list of rules as a table
+                            import pandas as pd
+                            df = pd.DataFrame(data)
+                            # Reorder columns for readability if they exist
+                            cols = ["Msg", "Action", "Proto", "Src", "Dir", "Dst", "SID"]
+                            df_cols = [c for c in cols if c in df.columns]
+                            if df_cols:
+                                st.dataframe(df[df_cols], use_container_width=True, hide_index=True)
+                            else:
+                                st.dataframe(df, use_container_width=True, hide_index=True)
+                        elif isinstance(data, dict) and "error" in data:
+                            st.error(data["error"])
+                        else:
+                            st.json(data)
+                            
+                    except (json.JSONDecodeError, TypeError):
+                        # Fallback to raw text if not JSON
+                        st.markdown(f"<div class='tool-call'><pre>{tool_output}</pre></div>", unsafe_allow_html=True)
                 
                 st.session_state.history.append({"query": query, "tool": tool_name, "output": tool_output})
