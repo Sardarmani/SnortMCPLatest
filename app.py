@@ -4,6 +4,7 @@ import asyncio
 import os
 import sys
 import json
+import getpass
 
 # MCP Imports
 from mcp import ClientSession, StdioServerParameters
@@ -166,6 +167,14 @@ if query:
             st.write("Thinking (Consulting Groq with Tool Schemas)...")
             
             response = llm_service.get_agent_response(query, tools)
+            
+            # Log the interaction
+            try:
+                tool_used = response.get("name") if response.get("type") == "tool_call" else "None"
+                with open("tool_usage.log", "a", encoding="utf-8") as log_file:
+                    log_file.write(f"Username: {getpass.getuser()} | Prompt: {query} | Tool: {tool_used}\n")
+            except Exception:
+                pass
             
             llm_latency = (time.time() - start_time) * 1000
             
